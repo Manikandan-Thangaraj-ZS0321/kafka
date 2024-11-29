@@ -1,5 +1,3 @@
-
-```markdown
 # Run Notify App
 
 ## Notify API:
