@@ -1,28 +1,44 @@
+import json
+
 import streamlit as st
 import requests
 
 API_SERVER = "http://localhost:5000"
-HARD_CODED_TOPIC = "elv_json"  # Hardcoded topic for demo purposes
+HARD_CODED_TOPIC = "elv_json"  # Kafka topic
 
+# Initialize session state
+if "chat_history" not in st.session_state:
+    st.session_state.chat_history = []  # List to store messages
+    st.session_state.seen_messages = set()  # Set for deduplication
+
+# Streamlit UI
 st.title("Kafka Message Viewer")
 st.header(f"Topic: {HARD_CODED_TOPIC}")
 
-# Initialize session state for chat history
-if "chat_history" not in st.session_state:
-    st.session_state.chat_history = []
-
-# Start consuming messages from the topic (only once)
-if "started_consuming" not in st.session_state:
-    response = requests.post(f"{API_SERVER}/consume", json={"topic": HARD_CODED_TOPIC})
-    if response.status_code == 200:
-        st.session_state.started_consuming = True
-        st.success(f"Started consuming topic: {HARD_CODED_TOPIC}")
-
-# Display chat-like message history
+# Display current message history
 st.subheader("Message History")
 for msg in st.session_state.chat_history:
-    with st.chat_message(msg["role"]):
-        st.write(msg["content"])
+    st.write(f"{msg['role']}: {msg['content']}")
+
+# Refresh button
+if st.button("Refresh Messages"):
+    try:
+        # Call the FastAPI endpoint
+        response = requests.get(f"{API_SERVER}/consume")
+        if response.status_code == 200:
+            data = response.json()
+            messages = data.get("messages", [])
+
+            # Append new messages
+            for message in messages:
+                st.write(json.loads(message))
+
+        else:
+            st.error(f"Failed to fetch messages. Status code: {response.status_code}")
+    except Exception as e:
+        st.error(f"Error fetching messages: {e}")
+
+
 
 # Function to decrypt AES encrypted messages
 def decrypt_message(encrypted_message, encryption_key):
@@ -39,24 +55,6 @@ def decrypt_message(encrypted_message, encryption_key):
 
     # Convert decrypted bytes back to string
     return decrypted_data.decode('utf-8')
-
-# Refresh and fetch new messages
-if st.button("Refresh Messages"):
-    response = requests.get(f"{API_SERVER}/messages", params={"topic": HARD_CODED_TOPIC})
-    if response.status_code == 200:
-        data = response.json()
-        messages = data.get("messages", [])
-        for message in messages:
-            # Assuming the response has encrypted messages, decrypt before displaying
-            decrypted_message = decrypt_message(message, ENCRYPTION_KEY)
-            # Add new messages to chat history
-            if {"role": "user", "content": message} not in st.session_state.chat_history:
-                st.session_state.chat_history.append({"role": "user", "content": message})
-    else:
-        st.error("Failed to fetch messages from API.")
-
-
-
 
 # Send a message
 #st.subheader("Send a Message")
