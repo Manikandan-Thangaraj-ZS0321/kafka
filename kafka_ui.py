@@ -1,5 +1,4 @@
 import json
-
 import streamlit as st
 import requests
 
@@ -15,11 +14,6 @@ if "chat_history" not in st.session_state:
 st.title("Kafka Message Viewer")
 st.header(f"Topic: {HARD_CODED_TOPIC}")
 
-# Display current message history
-st.subheader("Message History")
-for msg in st.session_state.chat_history:
-    st.write(f"{msg['role']}: {msg['content']}")
-
 # Refresh button
 if st.button("Refresh Messages"):
     try:
@@ -29,16 +23,25 @@ if st.button("Refresh Messages"):
             data = response.json()
             messages = data.get("messages", [])
 
-            # Append new messages
+            # Prepend new messages to chat history
             for message in messages:
-                st.write(json.loads(message))
+                transaction_json = json.loads(message)  # Parse the JSON message
+
+                # Check for duplicates using a set
+                if message not in st.session_state.seen_messages:
+                    st.session_state.chat_history.insert(0, transaction_json)  # Add to the beginning
+                    st.session_state.seen_messages.add(message)  # Mark as seen
 
         else:
             st.error(f"Failed to fetch messages. Status code: {response.status_code}")
     except Exception as e:
         st.error(f"Error fetching messages: {e}")
 
-
+# Display the current chat history as JSON nodes
+for transaction in st.session_state.chat_history:
+    transaction_id = transaction.get("transactionId", "Unknown ID")
+    st.subheader(f"The outbound JSON for the transaction ID: {transaction_id}")
+    st.json(transaction)  # Display each transaction as a JSON node
 
 # Function to decrypt AES encrypted messages
 def decrypt_message(encrypted_message, encryption_key):
@@ -55,18 +58,3 @@ def decrypt_message(encrypted_message, encryption_key):
 
     # Convert decrypted bytes back to string
     return decrypted_data.decode('utf-8')
-
-# Send a message
-#st.subheader("Send a Message")
-#user_message = st.text_input("Enter your message", key="message_input")
-#if st.button("Send Message"):
-#    if user_message:
-#        response = requests.post(
-#            f"{API_SERVER}/publish",
-#            json={"topic": HARD_CODED_TOPIC, "message": user_message},
-#        )
-#        if response.status_code == 200:
-#            st.session_state.chat_history.append({"role": "user", "content": user_message})
-#            st.success("Message sent!")
-#        else:
-#            st.error("Failed to send the message.")

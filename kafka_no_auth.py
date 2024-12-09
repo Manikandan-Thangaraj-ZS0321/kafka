@@ -6,9 +6,9 @@ import uvicorn
 app = FastAPI()
 
 # Kafka Configuration
-KAFKA_BROKER = "127.0.0.1:9092"  # Kafka broker address
+KAFKA_BROKER = "localhost:9092"  # Kafka broker address
 KAFKA_GROUP_ID = "fastapi-group"
-KAFKA_TOPIC = "elv_json"
+KAFKA_TOPIC = ("elv_json")
 
 # Model for message data
 class PublishMessageRequest(BaseModel):
